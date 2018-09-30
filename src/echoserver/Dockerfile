@@ -5,7 +5,7 @@ RUN dotnet restore
 RUN dotnet publish -c release
 
 FROM microsoft/dotnet
-COPY --from=builder src/bin/release/netcoreapp2.0/publish app
+COPY --from=builder src/bin/release/netcoreapp2.1/publish app
 WORKDIR app
 ENV ASPNETCORE_URLS http://*:80
 EXPOSE 80

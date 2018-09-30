@@ -1,0 +1,38 @@
+# Build ASP.NET Core project using Azure Pipelines
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core?view=vsts
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+  
+variables:
+  buildConfiguration: 'Release'
+  dockerId: 'dotnetconf'
+  imageName: 'echoserver:$(Build.BuildId)'
+
+steps:
+- script: |
+    dotnet build --configuration $(buildConfiguration) ./src/echoserver.sln
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: test
+    projects: '**/*tests/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
+
+- script: |
+    cd src/echoserver
+    dotnet publish --configuration $(buildConfiguration) --output "$(Build.ArtifactStagingDirectory)\netcoreapp2.1"
+
+- task: PublishBuildArtifacts@1
+
+- task: Docker@1
+  displayName: Login
+  inputs:
+    azureSubscriptionEndpoint: 'HexaAzureSubscription'
+    azureContainerRegistry:  $(dockerId).azurecr.io
+    command: login
+
+- script: |
+    cd src/echoserver
+    docker build -t $(dockerId).azurecr.io/$(imageName) .
+    docker push $(dockerId).azurecr.io/$(imageName)
