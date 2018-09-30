@@ -1,0 +1,28 @@
+---
+- name: Deploy to ACI
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Create Resource Group
+      azure_rm_resourcegroup:
+        location: "northeurope"
+        name: "netConf2018"
+        state: present
+    - name: Create the ACI Container Croup
+      azure_rm_containerinstance:
+        resource_group: netConf2018
+        name: netConf2018
+        os_type: linux
+        ip_address: public
+        ports:
+          - 80
+        containers:
+          - name: echoserver
+            image: docker.io/cmendibl3/echoserver:1.0
+            memory: 1.5
+            ports:
+              - 80
+      register: new_aci
+    - name: Show Public IP
+      debug:
+        msg: "{{ new_aci.ip_address }}"
