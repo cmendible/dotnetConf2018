@@ -25,6 +25,7 @@ namespace echoserver
                             // Echo the Headers
                             foreach (var header in request.Headers)
                             {
+                                System.Console.WriteLine($"Received Header: {header.Key}");
                                 response.Headers.Add(header);
                             }
 
