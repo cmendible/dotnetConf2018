@@ -1,19 +1,22 @@
 kind: helm-release
-apiVersion: 1.0
+apiVersion: 1.1
 build:
   context: .
   dockerfile: Dockerfile
 install:
-  chart: charts/echoserver
+  chart: charts\echoserver
   values:
   - values.dev.yaml?
   - secrets.dev.yaml?
   set:
     replicaCount: 1
     image:
+      repository: echoserver
       tag: $(tag)
       pullPolicy: Never
     ingress:
+      annotations:
+        kubernetes.io/ingress.class: traefik-azds
       hosts:
       # This expands to [space.s.]echoserver.<guid>.<region>.aksapp.io
       - $(spacePrefix)echoserver$(hostSuffix)
