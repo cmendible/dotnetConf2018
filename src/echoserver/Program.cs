@@ -25,7 +25,7 @@ namespace echoserver
                             // Echo the Headers
                             foreach (var header in request.Headers)
                             {
-                                System.Console.WriteLine($"Received Header from netConfBcn: {header.Key}");
+                                System.Console.WriteLine($"Received Header from Madrid: {header.Key}");
                                 response.Headers.Add(header);
                             }
 
