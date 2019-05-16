@@ -1,0 +1,203 @@
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Alexa.NET.Request;
+using Alexa.NET.Request.Type;
+using Alexa.NET;
+using Alexa.NET.Response;
+using System.Collections.Generic;
+using System.Xml;
+using Microsoft.SyndicationFeed.Rss;
+using System.Linq;
+using System;
+using Alexa.NET.LocaleSpeech;
+using System.Net.Http;
+using System.Text;
+
+namespace AlexaSkill
+{
+    public static class Alexa
+    {
+        [FunctionName("Alexa")]
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = null)] HttpRequest req,
+            ILogger log)
+        {
+            string json = await req.ReadAsStringAsync();
+            var skillRequest = JsonConvert.DeserializeObject<SkillRequest>(json);
+
+            //this is the language used to invoke the skill
+            string language = skillRequest.Request.Locale;
+
+            bool isValid = await ValidateRequest(req, log, skillRequest);
+            if (!isValid)
+            {
+                return new BadRequestResult();
+            }
+
+            var requestType = skillRequest.GetRequestType();
+            var locale = SetupLanguages(skillRequest);
+
+            SkillResponse response = null;
+
+            if (requestType == typeof(LaunchRequest))
+            {
+                var message = await locale.Get("Welcome", null);
+                response = ResponseBuilder.Tell(message);
+                response.Response.ShouldEndSession = false;
+            }
+            else if (requestType == typeof(IntentRequest))
+            {
+                var intentRequest = skillRequest.Request as IntentRequest;
+
+                if (intentRequest.Intent.Name == "carlos")
+                {
+                    var message = await locale.Get("carlos", null);
+                    response = ResponseBuilder.Tell(message);
+                    response.Response.ShouldEndSession = false;
+                }
+
+                if (intentRequest.Intent.Name == "victoria")
+                {
+                    var message = await locale.Get("event", new string[] { });
+
+                    var endPoint = Environment.GetEnvironmentVariable("eventGridEndPoint");
+                    var sas = Environment.GetEnvironmentVariable("eventGridSAS");
+
+                    var httpClient = new HttpClient();
+                    httpClient.DefaultRequestHeaders.Add("aeg-sas-key", sas);
+
+                    // Event must have this fields
+                    var customEvent = new GridEvent<object>
+                    {
+                        Subject = "Event",
+                        EventType = "allEvents",
+                        EventTime = DateTime.UtcNow,
+                        Id = Guid.NewGuid().ToString(),
+                        Data = 10
+                    };
+
+                    // A List must be sent
+                    var eventList = new List<GridEvent<object>>() { customEvent };
+
+                    string jsonEvent = JsonConvert.SerializeObject(eventList);
+                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, endPoint)
+                    {
+                        Content = new StringContent(jsonEvent, Encoding.UTF8, "application/json")
+                    };
+
+                    await httpClient.SendAsync(request);
+
+                    response = ResponseBuilder.Tell(message);
+                }
+                else if (intentRequest.Intent.Name == "AMAZON.CancelIntent")
+                {
+                    var message = await locale.Get("Cancel", null);
+                    response = ResponseBuilder.Tell(message);
+                }
+                else if (intentRequest.Intent.Name == "AMAZON.HelpIntent")
+                {
+                    var message = await locale.Get("Help", null);
+                    response = ResponseBuilder.Tell(message);
+                    response.Response.ShouldEndSession = false;
+                }
+                else if (intentRequest.Intent.Name == "AMAZON.StopIntent")
+                {
+                    var message = await locale.Get("Stop", null);
+                    response = ResponseBuilder.Tell(message);
+                }
+            }
+            else if (requestType == typeof(SessionEndedRequest))
+            {
+                log.LogInformation("Session ended");
+                response = ResponseBuilder.Empty();
+                response.Response.ShouldEndSession = true;
+            }
+
+            return new OkObjectResult(response);
+        }
+
+        private static async Task<bool> ValidateRequest(HttpRequest request, ILogger log, SkillRequest skillRequest)
+        {
+            request.Headers.TryGetValue("SignatureCertChainUrl", out var signatureChainUrl);
+            if (string.IsNullOrWhiteSpace(signatureChainUrl))
+            {
+                log.LogError("Validation failed. Empty SignatureCertChainUrl header");
+                return false;
+            }
+
+            Uri certUrl;
+            try
+            {
+                certUrl = new Uri(signatureChainUrl);
+            }
+            catch
+            {
+                log.LogError($"Validation failed. SignatureChainUrl not valid: {signatureChainUrl}");
+                return false;
+            }
+
+            request.Headers.TryGetValue("Signature", out var signature);
+            if (string.IsNullOrWhiteSpace(signature))
+            {
+                log.LogError("Validation failed - Empty Signature header");
+                return false;
+            }
+
+            request.Body.Position = 0;
+            var body = await request.ReadAsStringAsync();
+            request.Body.Position = 0;
+
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                log.LogError("Validation failed - the JSON is empty");
+                return false;
+            }
+
+            // bool isTimestampValid = RequestVerification.RequestTimestampWithinTolerance(skillRequest);
+            // bool valid = await RequestVerification.Verify(signature, certUrl, body);
+
+            // if (!valid || !isTimestampValid)
+            // {
+            //     log.LogError("Validation failed - RequestVerification failed");
+            //     return false;
+            // }
+            // else
+            // {
+            return true;
+            // }
+        }
+
+        public static ILocaleSpeech SetupLanguages(SkillRequest skillRequest)
+        {
+            var store = new DictionaryLocaleSpeechStore();
+            store.AddLanguage("en", new Dictionary<string, object>
+            {
+                { "Welcome", "Welcome to the Alimentatech skill! I'm sorry to inform you that I will not be paying for the beers after the event" },
+                { "carlos", "Wait. I'm getting his bitcoin balance.... Hmmmmmm Carlos you should pay at least for your beers!!!" },
+                { "event", "OK I'm sending the event to Event Grid" },
+                { "Cancel", "I'm cancelling the request..." },
+                { "Help", "Sorry you are on your own." },
+                { "Stop", "Bye!" }
+            });
+
+            var localeSpeechFactory = new LocaleSpeechFactory(store);
+            var locale = localeSpeechFactory.Create(skillRequest);
+
+            return locale;
+        }
+    }
+
+    public class GridEvent<T> where T : class
+    {
+        public string Id { get; set; }
+        public string Subject { get; set; }
+        public string EventType { get; set; }
+        public T Data { get; set; }
+        public DateTime EventTime { get; set; }
+    }
+}
