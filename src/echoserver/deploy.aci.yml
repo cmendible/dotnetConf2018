@@ -6,12 +6,12 @@
     - name: Create Resource Group
       azure_rm_resourcegroup:
         location: "northeurope"
-        name: "netConf2018"
+        name: "caracas2020"
         state: present
     - name: Create the ACI Container Croup
       azure_rm_containerinstance:
-        resource_group: netConf2018
-        name: netConf2018
+        resource_group: caracas2020
+        name: caracas2020
         os_type: linux
         ip_address: public
         ports:
