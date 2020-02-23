@@ -1,14 +1,15 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "echoserver.fullname" . }}
   labels:
     app: {{ template "echoserver.name" . }}
     chart: {{ template "echoserver.chart" . }}
-    draft: {{ default "draft-app" .Values.draft }}
+    draft: {{ .Values.draft | default "draft-app" }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
+  revisionHistoryLimit: 0
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
@@ -18,10 +19,10 @@ spec:
     metadata:
       labels:
         app: {{ template "echoserver.name" . }}
-        draft: {{ default "draft-app" .Values.draft }}
+        draft: {{ .Values.draft | default "draft-app" }}
         release: {{ .Release.Name }}
       annotations:
-        buildID: {{ .Values.buildID }}
+        buildID: {{ .Values.buildID | default "" | quote }}
     spec:
       containers:
         - name: {{ .Chart.Name }}

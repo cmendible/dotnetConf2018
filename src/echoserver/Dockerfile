@@ -1,7 +1,8 @@
 FROM microsoft/dotnet:2.1-sdk AS builder
-COPY . src
-WORKDIR src
+COPY ./*.csproj ./src/
+WORKDIR /src
 RUN dotnet restore
+COPY . /src
 RUN dotnet publish -c release
 
 FROM microsoft/dotnet:2.1-aspnetcore-runtime

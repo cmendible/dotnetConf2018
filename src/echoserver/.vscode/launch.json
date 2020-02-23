@@ -6,7 +6,7 @@
             "request": "launch",
             "preLaunchTask": "azds: prelaunch",
             "pipeTransport": {
-                "pipeCwd": "${workspaceRoot}",
+                "pipeCwd": "${workspaceFolder}",
                 "pipeProgram": "azds",
                 "pipeArgs": [
                     "exec",
@@ -20,7 +20,7 @@
             "cwd": "/src",
             "program": "/src/bin/Debug/netcoreapp2.1/echoserver.dll",
             "sourceFileMap": {
-                "/src": "${workspaceRoot}"
+                "/src": "${workspaceFolder}/."
             }
         }
     ]

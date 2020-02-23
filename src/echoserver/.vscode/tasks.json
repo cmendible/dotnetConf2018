@@ -9,7 +9,7 @@
                 "--keep-alive"
             ],
             "options": {
-                "cwd": "${workspaceRoot}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": "$msCompile"
         }
